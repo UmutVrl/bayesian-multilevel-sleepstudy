@@ -1,0 +1,158 @@
+---
+title: "bayesian_sleepstudy_analysis"
+author: "Umut Can Vural"
+date: "2026-10-11"
+output:
+  html_document:
+    toc: true
+    toc_float: true
+    code_folding: hide
+editor_options: 
+  markdown: 
+    wrap: 72
+---
+
+## Purpose
+
+This document demonstrates a complete workflow for Bayesian multilevel
+analysis of sleepstudy data in R using brms, with prior specification,
+posterior inference, and model diagnostics.
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, message = FALSE)
+```
+
+## Required packages
+
+- **tidyverse:** Tools for importing, transforming, summarising, and
+  visualising data.
+- **knitr:** Executes R Markdown code chunks and formats tables and
+  output.
+- **brms:** Specifies Bayesian regression and multilevel models using an
+  R formula interface.
+- **rstan:** Interfaces with Stan to compile models and sample from
+  posterior distributions.
+- **loo:** Estimates out-of-sample predictive performance using
+  approximate leave-one-out cross-validation.
+- **bayesplot:** Visualises posterior draws, sampling diagnostics, and
+  posterior predictive checks.
+- **lme4:** Provides the sleepstudy dataset and fits frequentist
+  mixed-effects models for comparison.
+
+```{r packages}
+library(brms)
+library(rstan)
+library(tidyverse)
+library(bayesplot)
+library(loo)
+library(knitr)
+library(lme4)
+```
+
+## 01 The sleepstudy warm-up
+
+> How does RT change over days of sleep deprivation, and how
+much do participants differ in their baseline RT and rate of
+change?
+
+We first fit a random-intercept model to establish the workflow, then
+extend it to include participant-specific slopes.
+
+```{r data}
+data("sleepstudy", package = "lme4")
+glimpse(sleepstudy)
+
+# Look at the data first: one line per person
+ggplot(sleepstudy, aes(Days, Reaction, group = Subject, colour = Subject)) +
+  geom_line(alpha = 0.9, linewidth = 0.8) +
+  labs(title = "Reaction time over days of sleep deprivation",
+       x = "Days", y = "Reaction time (ms)") +
+  theme(legend.position = "none")
+```
+
+### Fit a simple model first
+
+> How much does reaction time change per day, while accounting for participants 
+having different starting reaction times?
+
+```{r random-intercept-model}
+# a collection of prior specifications
+# Before updating with the observations, plausible values for the average RT
+# level are distributed around 300 ms, with prior SD 100 ms.
+priors_ri <- c(
+  prior(normal(300, 100), class = Intercept), # Set the prior for the average level
+  prior(normal(0, 10), class = b, coef = Days), # Set the prior for the slope of Days
+  prior(student_t(3, 0, 50), class = sd), # Set the prior for the standard deviation of the random intercepts
+  prior(student_t(3, 0, 50), class = sigma)# Set the prior for the residual standard deviation
+)
+
+# the fitted model object
+m_brms_ri <- brms::brm(
+  Reaction ~ Days + (1 | Subject), # Participants have different baseline RT,
+                                   # but the same underlying daily change.
+  data = sleepstudy,
+  family = gaussian(), # Assume normally distributed variation around each expected RT.
+  prior = priors_ri,
+  backend = "rstan",
+  iter = 2000,    # Total iterations per chain, including warmup
+  warmup = 1000,  # Sampler adaptation; excluded from posterior summaries
+  chains = 4,    # Four separate sampling chains
+  cores = 2,     # Run up to two chains in parallel
+  seed = 2026    # Reproducible random seed
+)
+
+summary(m_brms_ri)
+plot(m_brms_ri)
+pp_check(m_brms_ri, ndraws = 50) +
+  labs(
+    title = "Posterior predictive check",
+    subtitle = "Observed reaction times (y) vs. 50 replicated datasets (y_rep)",
+    x = "Reaction time (ms)",
+    y = "Density"
+  ) +
+  yaxis_text(TRUE) +    # bayesplot hides the y-axis numbers by default
+  yaxis_ticks(TRUE)
+```
+Under this random-intercept model and the specified priors, expected reaction time increases by about **10.41 ms/day**. The **95%** credible interval for the daily increase is **8.81–11.98 ms/day**.
+
+The `pp_check()` function generates a probability density plot of the observed and replicated data. The plot shows two densities::
+y: the estimated density of your observed 180 reaction times.
+yrep: the estimated density of one replicated dataset generated from the fitted model.
+
+The posterior predictive plot compares the observed reaction-time density (black, y) with the densities of 50 replicated datasets generated from the fitted model (blue, yrep). Broad agreement suggests that the model reproduces the overall outcome distribution, but does not establish that it captures individual trajectories.
+
+
+```{r tighter-prior}
+# Same priors as before, except for the Days slope
+priors_tighter <- c(
+  brms::set_prior("normal(300, 100)", class = "Intercept"),
+  brms::set_prior("normal(0, 2)", class = "b", coef = "Days"), # a more concentrated prior
+  brms::set_prior("student_t(3, 0, 50)", class = "sd"),
+  brms::set_prior("student_t(3, 0, 50)", class = "sigma")
+)
+
+m_ri_tighter <- update(
+  m_brms_ri,
+  prior = priors_tighter,
+  seed = 2026
+)
+
+# Compare the Days posterior
+brms::fixef(m_brms_ri)["Days", ]
+brms::fixef(m_ri_tighter)["Days", ]
+
+summary(m_ri_tighter)
+plot(m_ri_tighter)
+
+pp_check(m_ri_tighter, ndraws = 50) +
+  labs(
+    title = "Posterior predictive check",
+    subtitle = "Observed reaction times (y) vs. 50 replicated datasets (y_rep)",
+    x = "Reaction time (ms)",
+    y = "Density"
+  ) +
+  yaxis_text(TRUE) +    # bayesplot hides the y-axis numbers by default
+  yaxis_ticks(TRUE)
+```
+Under the random-intercept model with the tighter slope prior, expected reaction time increases by approximately **8.94 ms/day**, with a **95%** credible interval of **7.38–10.49 ms/day**. The direction of the effect remained consistent, but its estimated magnitude was sensitive to the stronger zero-centred prior.
+
