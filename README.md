@@ -18,3 +18,10 @@ TODO (11.10.2026):
 4. Random slopes	Extend to (1 + Days \| Subject)	Allow participants to differ in daily change
 5. Predictive checking	Examine predictions over Days and participants	Check more than the pooled RT distribution
 6. Portfolio cleanup	Add comparison tables, dynamic results, limitations, and session information	Turn the learning document into a reusable report
+
+## Planned extension
+
+Apply the Bayesian multilevel workflow to map-related YouTube content,
+investigating differences in video performance across niches while
+accounting for channel characteristics and uncertainty. The scope will
+depend on data availability and applicable data-use permissions.
