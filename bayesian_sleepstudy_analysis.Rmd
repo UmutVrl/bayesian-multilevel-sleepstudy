@@ -122,7 +122,7 @@ The prior predictive check uses the model structure and priors, but
 therefore shows what kinds of datasets the current priors consider
 plausible before learning from the data.
 
-```{r prior-predictive-check, message=FALSE, warning=FALSE}
+```{r prior-predictive-check, message=FALSE, warning=FALSE, results='hide'}
 m_prior_ri <- brms::brm(
   Reaction ~ Days + (1 | Subject),
   data = sleepstudy,
@@ -136,7 +136,9 @@ m_prior_ri <- brms::brm(
   cores = 2,
   seed = 2026
 )
+```
 
+```{r prior-predictive-check-plot, message=FALSE, warning=FALSE}
 pp_check(m_prior_ri, ndraws = 30) +
   coord_cartesian(xlim = c(0, 600)) +
   scale_x_continuous(breaks = seq(0, 600, by = 100))  +
@@ -173,7 +175,7 @@ having different starting RTs?
 
 Reaction ij​=β 0​+u 0i​+β 1​Days ij​+ϵ ij​
 
-```{r random-intercept-model, message=FALSE, warning=FALSE}
+```{r random-intercept-model, message=FALSE, warning=FALSE, results='hide'}
 # the fitted model object
 m_brms_ri <- brms::brm(
   Reaction ~ Days + (1 | Subject), # Participants have different baseline RT,
@@ -193,7 +195,6 @@ m_brms_ri <- brms::brm(
 ```
 
 ```{r ri-diagnostics, message=FALSE, warning=FALSE}
-summary(m_brms_ri)
 mcmc_plot(m_brms_ri, type = "trace")
 neff_ratio(m_brms_ri)
 #plot(m_brms_ri)
@@ -213,7 +214,12 @@ pp_check(m_brms_ri, ndraws = 50) +
 
 conditional_effects(m_brms_ri, effects = "Days")
 ```
-Baseline RT: posterior median **251.47 ms; 95% CrI 231.40–271.26.**
+
+``` {r ri- summary}
+summary(m_brms_ri)
+```
+
+Baseline RT: posterior median **251.69 ms; 95% CrI 231.40–271.26.**
 
 Daily effect: RT increases by **10.40 ms per day; 95% CrI 8.82–11.99.** 
 The interval excludes zero, so the data provide clear
@@ -268,17 +274,24 @@ priors_tighter <- c(
   set_prior("student_t(3, 0, 50)", class = "sigma")
 )
 
+```
+
+```{r tighter-prior-model, message=FALSE, warning=FALSE, results='hide'}
+
 m_ri_tighter <- update(
   m_brms_ri,
   prior = priors_tighter,
   seed = 2026
 )
+```
+
+```{r tighter-prior-diagnostics, message=FALSE, warning=FALSE}
 
 # Compare the Days posterior
 fixef(m_brms_ri)["Days", ]
 fixef(m_ri_tighter)["Days", ]
 
-summary(m_ri_tighter)
+
 mcmc_plot(m_ri_tighter, type = "trace")
 
 pp_check(m_ri_tighter, ndraws = 50) +
@@ -295,6 +308,10 @@ pp_check(m_ri_tighter, ndraws = 50) +
 
 #neff_ratio(m_ri_tighter)
 ```
+
+```{r tighter-prior-summary}
+summary(m_ri_tighter)
+```
 Under the primary weakly informative prior, RT increased by about **10.40** ms/day **(95% CrI: 8.82–11.99)**. Under a much tighter zero-centred prior 
 **(SD = 2)**, the estimate fell to **8.97 ms/day (95% CrI: 7.43–10.48)**. The direction and conclusion were unchanged, but the estimate moved toward the prior, so the result is somewhat sensitive to a strongly sceptical slope prior.
 
@@ -309,7 +326,7 @@ sleep deprivation affects them?
 
 Reaction ij​=β 0​ +u 0i​ +(β ​ +u 1i​)Days ij​+ϵ ij​
 
-```{r random-slope-model, message=FALSE, warning=FALSE}
+```{r define-priors-rs, message=FALSE, warning=FALSE}
 priors_rs <- c(
   prior(normal(300, 100), class = Intercept),
   prior(normal(0, 10), class = b, coef = Days),
@@ -317,6 +334,10 @@ priors_rs <- c(
   prior(student_t(3, 0, 50), class = sigma),
   prior(lkj(2), class = cor)
 )
+
+```
+
+```{r random-slope-model-fit, message=FALSE, warning=FALSE, results='hide'}
 
 m_brms_rs <- brms::brm(
   Reaction ~ Days + (Days | Subject),
@@ -335,7 +356,6 @@ m_brms_rs <- brms::brm(
 ```
 
 ```{r  rs-diagnostics, message=FALSE, warning=FALSE}
-summary(m_brms_rs)
 mcmc_plot(m_brms_rs, type = "trace")
 neff_ratio(m_brms_rs)
 #plot(m_brms_rs)
@@ -353,6 +373,10 @@ pp_check(m_brms_rs, ndraws = 50) +
   bayesplot::yaxis_ticks(TRUE)
 
 conditional_effects(m_brms_rs, effects = "Days")
+```
+
+```{r rs-summary}
+summary(m_brms_rs)
 ```
 
 ### Model comparison
