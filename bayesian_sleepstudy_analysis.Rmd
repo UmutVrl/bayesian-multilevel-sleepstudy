@@ -96,13 +96,11 @@ Notes:
 
 ### Prior specification
 
-```{r define-priors}
+```{r define-priors, message=FALSE, warning=FALSE}
 # a collection of prior specifications
-# Before updating with the observations, plausible values for the average RT
-# level are distributed around 300 ms, with prior SD 100 ms.
 priors_ri <- c(
-  # Before seeing the data, what reaction times are plausible?
-  # Around 300 ms but fairly uncertain
+  # Expected RT at the mean value of Days is centered at 300 ms,
+  # with prior SD 100 ms.
   prior(normal(300, 100), class = Intercept), # Set the prior for the average level
   # Before observing data, how much could reaction time change per day?
   # Usually near 0 but ±20 ms or so is plausible.
@@ -116,8 +114,6 @@ priors_ri <- c(
 )
 
 ```
-
-
 > Before letting the observed RT update our parameters,
 what RT measurements do our priors predict?
 
@@ -126,7 +122,7 @@ The prior predictive check uses the model structure and priors, but
 therefore shows what kinds of datasets the current priors consider
 plausible before learning from the data.
 
-```{r prior-predictive-check}
+```{r prior-predictive-check, message=FALSE, warning=FALSE}
 m_prior_ri <- brms::brm(
   Reaction ~ Days + (1 | Subject),
   data = sleepstudy,
@@ -154,8 +150,6 @@ pp_check(m_prior_ri, ndraws = 30) +
   bayesplot::yaxis_ticks(TRUE)
 
 ```
-
-
 The summary below describes the prior distributions, not estimates
 updated by the observed Rts.
 
@@ -179,8 +173,7 @@ having different starting RTs?
 
 Reaction ij​=β 0​+u 0i​+β 1​Days ij​+ϵ ij​
 
-
-```{r random-intercept-model}
+```{r random-intercept-model, message=FALSE, warning=FALSE}
 # the fitted model object
 m_brms_ri <- brms::brm(
   Reaction ~ Days + (1 | Subject), # Participants have different baseline RT,
@@ -199,11 +192,11 @@ m_brms_ri <- brms::brm(
 )
 ```
 
-```{r ri-diagnostics}
+```{r ri-diagnostics, message=FALSE, warning=FALSE}
 summary(m_brms_ri)
 mcmc_plot(m_brms_ri, type = "trace")
 neff_ratio(m_brms_ri)
-plot(m_brms_ri)
+#plot(m_brms_ri)
 
 # Posterior predictive check: does the model reproduce the observed data?
 pp_check(m_brms_ri, ndraws = 50) +
@@ -220,25 +213,23 @@ pp_check(m_brms_ri, ndraws = 50) +
 
 conditional_effects(m_brms_ri, effects = "Days")
 ```
+Baseline RT: posterior median **251.47 ms; 95% CrI 231.40–271.26.**
 
-Baseline RT: posterior median **251.17 ms; 95% CrI 231.62–271.18.**
-
-Daily effect: RT increases by **10.41 ms per day; 95% CrI 8.81–11.98.** 
+Daily effect: RT increases by **10.40 ms per day; 95% CrI 8.82–11.99.** 
 The interval excludes zero, so the data provide clear
 evidence for a positive daily effect.
 
-Between-person variability: **sd(Intercept) = 38.58 ms**; 
+Between-person variability: **sd(Intercept) = 39.16 ms**; 
 participants differ substantially in baseline RT.
 
-Residual noise: **sigma = 31.17 ms**; there is substantial
-trial-to-trial variation around each person’s expected RT.
-
+Residual variation: **sigma = 31.22 ms**; 
+daily average reaction times varied around each participant’s fitted trajectory.
 
 Under the random-intercept model, the population-average expected RT
-increased by approximately **10.41 ms** per day of sleep deprivation
-**(95% CrI: 8.81–11.98)**. Participants differed substantially in baseline RT 
-(posterior median SD: **38.58 ms**), and residual trial-to-trial variability 
-was approximately **31.17 ms**. The model assumes a common daily slope across 
+increased by approximately **10.40 ms** per day of sleep deprivation
+**(95% CrI: 8.82–11.99)**. Participants differed substantially in baseline RT 
+(posterior median SD: **39.16 ms**), and residual day-to-day variability 
+was approximately **31.22 ms**. The model assumes a common daily slope across 
 participants.
 
 The `pp_check()` function generates a probability density plot of the
@@ -268,7 +259,7 @@ sample sizes remained adequate for stable posterior estimates.
 
 > If I become more skeptical about large slopes, what happens?
 
-```{r tighter-prior}
+```{r tighter-prior, message=FALSE, warning=FALSE}
 # Same priors as before, except for the Days slope
 priors_tighter <- c(
   set_prior("normal(300, 100)", class = "Intercept"),
@@ -302,16 +293,10 @@ pp_check(m_ri_tighter, ndraws = 50) +
   bayesplot::yaxis_text(TRUE) + # bayesplot hides the y-axis numbers by default
   bayesplot::yaxis_ticks(TRUE)
 
-summary(m_ri_tighter)
-neff_ratio(m_ri_tighter)
+#neff_ratio(m_ri_tighter)
 ```
-
-Under the primary weakly informative prior, RT increased by 
-approximately **10.40 ms*** per day **(95% CrI: 8.82–11.99)**.
-Under a more concentrated zero-centred prior, the estimate was **8.97 ms**
-per day **(95% CrI: 7.43–10.48)**. The direction and statistical conclusion 
-were unchanged, but the magnitude moved toward the prior, indicating sensitivity
-to this strongly informative slope prior.
+Under the primary weakly informative prior, RT increased by about **10.40** ms/day **(95% CrI: 8.82–11.99)**. Under a much tighter zero-centred prior 
+**(SD = 2)**, the estimate fell to **8.97 ms/day (95% CrI: 7.43–10.48)**. The direction and conclusion were unchanged, but the estimate moved toward the prior, so the result is somewhat sensitive to a strongly sceptical slope prior.
 
 The posterior predictive distributions broadly overlapped the observed 
 RT distribution, indicating that the random-intercept model 
@@ -324,7 +309,7 @@ sleep deprivation affects them?
 
 Reaction ij​=β 0​ +u 0i​ +(β ​ +u 1i​)Days ij​+ϵ ij​
 
-```{r random-slope-model}
+```{r random-slope-model, message=FALSE, warning=FALSE}
 priors_rs <- c(
   prior(normal(300, 100), class = Intercept),
   prior(normal(0, 10), class = b, coef = Days),
@@ -349,11 +334,11 @@ m_brms_rs <- brms::brm(
 )
 ```
 
-```{r  rs-diagnostics}
+```{r  rs-diagnostics, message=FALSE, warning=FALSE}
 summary(m_brms_rs)
 mcmc_plot(m_brms_rs, type = "trace")
 neff_ratio(m_brms_rs)
-plot(m_brms_rs)
+#plot(m_brms_rs)
 
 pp_check(m_brms_rs, ndraws = 50) +
   coord_cartesian(xlim = c(0, 700)) +
@@ -372,15 +357,13 @@ conditional_effects(m_brms_rs, effects = "Days")
 
 ### Model comparison
 
-
-```{r model-comparison}
+```{r model-comparison, message=FALSE, warning=FALSE}
 # leave-one-out cross-validation
 loo_ri <- loo(m_brms_ri, moment_match = TRUE)
 loo_rs <- loo(m_brms_rs, moment_match = TRUE)
 
 loo_compare(loo_ri, loo_rs)
 ```
-
 LOO comparison indicated that the random-slope model had better 
 expected out-of-sample predictive accuracy than the random-intercept model 
 **(elpd_diff = -23.2, se_diff = 12.1)**. All Pareto-𝑘k diagnostics were 
@@ -391,10 +374,14 @@ estimate of between-participant slope variability, these results support
 allowing the effect of sleep deprivation to vary across participants.
 
 The random-slope model was preferred by LOO comparison, although the difference
-was moderate relative to its standard error. Substantively, the model indicated
-that RT increased by approximately **10.19 ms/day** on average, 
+was about **1.9 SE** and should be interpreted with some uncertainty.
+Substantively, the model indicated that RT increased by approximately
+**10.18 ms/day** on average, 
 while the rate of increase varied across participants
-**(sd(Days) = 6.57, 95% CrI: 4.16–10.05)**.
+**(sd(Days) = 6.58, 95% CrI: 4.18–10.15)**. 
+
+Residual variation in daily average RT was approximately **25.89 ms**
+under the random-slope model.
 
 The Bayesian random-slope model provided posterior distributions for participant
 -specific daily effects, allowing uncertainty in individual trajectories to be 
@@ -409,14 +396,14 @@ How much do participant slopes vary overall?
 
 predictive checking beyond the pooled RT distribution
 
-```{r predictive-check}
-#Check predictions over Days
+```{r predictive-check, fig.width=14, fig.height=10, message=FALSE, warning=FALSE}
 pp_check(
   m_brms_rs,
   type = "ribbon_grouped",
   group = "Subject",
   x = "Days",
-  ndraws = 100
+  ndraws = 100,
+  facet_args = list(ncol = 6, scales = "fixed")
 ) +
   labs(
     title = "Posterior predictive check by participant",
@@ -424,19 +411,24 @@ pp_check(
     x = "Days of sleep deprivation",
     y = "Reaction time (ms)"
   )
-
 ```
+Most observed participant trajectories fell within the posterior 
+predictive intervals. Some abrupt within-participant fluctuations
+were not captured by the linear trend, indicating local limitations of the model.
 
-```{r predictive-check-2}
+```{r predictive-check-2, message=FALSE, warning=FALSE}
 # Plot participant-specific trajectories
 conditional_effects(
   m_brms_rs,
   effects = "Days",
-  re_formula = NULL
+  re_formula = NA
 )
 ```
+The population-average expected RT increased from approximately **250 ms**
+to **350 ms** across the observed study days. The credible band widened over
+time because uncertainty in the daily slope accumulates.
 
-```{r predictive-check-3}
+```{r predictive-check-3, message=FALSE, warning=FALSE}
 sleepstudy %>%
   add_epred_draws(
     m_brms_rs,
@@ -458,48 +450,99 @@ sleepstudy %>%
   ) +
   theme(legend.position = "none")
 ```
+Most participant-specific fitted trajectories closely followed the observed
+lines. The model captured the general increase in RT, while one participant 
+with a non-linear trajectory was less well represented.
 
-```{r predictive-check-4}
+
+```{r predictive-check-4, message=FALSE, warning=FALSE}
 #Check model fit by summary statistics
+
+pp_check(m_brms_rs, type = "stat", stat = "mean", ndraws = 1000)
+
+pp_check(m_brms_rs, type = "stat", stat = "sd", ndraws = 1000)
+
+pp_check(
+  m_brms_rs,
+  type = "stat_grouped",
+  group = "Subject",
+  stat = "mean",
+  ndraws = 1000
+)
 ```
+Posterior predictive checks broadly reproduced the overall RT distribution
+and most participant trajectories. Some abrupt within-participant fluctuations
+were not captured by the linear trend, indicating local limitations of the model.
 
-```{r predictive-check-5}
-#  frequentist comparison
-summary(m_obs)
+```{r frequentist-comparison, , message=FALSE, warning=FALSE}
+m_freq_ri <- lme4::lmer(Reaction ~ Days + (1 | Subject), data = sleepstudy)
+m_freq_rs <- lme4::lmer(Reaction ~ Days + (Days | Subject), data = sleepstudy)
 
-fixef(m_obs)
-VarCorr(m_obs)
+freq_ri <- coef(summary(m_freq_ri))["Days", ]
+freq_rs <- coef(summary(m_freq_rs))["Days", ]
+
+bayes_ci <- function(fit) {
+  d <- fixef(fit)["Days", ]
+  paste0("[", round(d["Q2.5"], 2), ", ", round(d["Q97.5"], 2), "]")
+}
 
 comparison_table <- tibble(
-  Model = c("Bayesian random intercept", "Bayesian random slope", "Frequentist random intercept"),
-  Daily_effect = c(
-    fixef(m_brms_ri)["Days", "Estimate"],
-    fixef(m_brms_rs)["Days", "Estimate"],
-    fixef(m_obs)["Days"]
+  Model = c(
+    "Bayesian random intercept",
+    "Bayesian random slope",
+    "Frequentist random intercept",
+    "Frequentist random slope"
   ),
-  CI_or_SE = c(
-    paste0("[", fixef(m_brms_ri)["Days", "Q2.5"], ", ",
-           fixef(m_brms_ri)["Days", "Q97.5"], "]"),
-    paste0("[", fixef(m_brms_rs)["Days", "Q2.5"], ", ",
-           fixef(m_brms_rs)["Days", "Q97.5"], "]"),
-    paste0("SE = ", se.fixef(m_obs)["Days"])
+  `Daily effect (ms/day)` = c(
+    round(fixef(m_brms_ri)["Days", "Estimate"], 2),
+    round(fixef(m_brms_rs)["Days", "Estimate"], 2),
+    round(freq_ri["Estimate"], 2),
+    round(freq_rs["Estimate"], 2)
+  ),
+  Uncertainty = c(
+    paste("95% CrI", bayes_ci(m_brms_ri)),
+    paste("95% CrI", bayes_ci(m_brms_rs)),
+    paste0("SE = ", round(freq_ri["Std. Error"], 2)),
+    paste0("SE = ", round(freq_rs["Std. Error"], 2))
   )
 )
 
-comparison_table
-
+knitr::kable(
+  comparison_table,
+  caption = "Comparison of estimated daily change in reaction time."
+)
 ```
+The Bayesian random-intercept and frequentist random-intercept models produced
+nearly identical average daily increases in RT. The random-slope model estimated
+a similar population-average effect but with a wider credible interval,
+reflecting additional uncertainty from participant-specific daily effects.
+Bayesian credible intervals and frequentist standard errors should not be
+interpreted identically: credible intervals express posterior probability 
+for the parameter, whereas standard errors describe sampling variability
+under repeated sampling. 
 
-```{r predictive-check-6}
 
+```{r session-info}
+sessionInfo()
 ```
+## Results
 
-
-### Results
+The random-slope model was preferred by LOO comparison 
+**(elpd_diff = −23.2, SE = 12.1, about 1.9 SEs; p_worse = 0.97)**. 
+Substantively, RT increased by approximately **10.18 ms/day** on average, 
+and the rate of increase varied across participants 
+(**sd(Days) = 6.58, 95% CrI: 4.18–10.15**).
 
 ## Limitations
 
-## Session Info
+The analysis assumes linear change over study days, normally distributed 
+residuals, and no remaining serial dependence after accounting for participant
+effects. Abrupt fluctuations in some trajectories were not fully captured. 
+The study includes only 18 participants, limiting the precision of 
+population-level variability estimates. Prior sensitivity was examined 
+for the common slope in the random-intercept model, but not comprehensively
+for the final random-slope model.
 
 ## Author
+
 Umut Can Vural 2026 MIT License
